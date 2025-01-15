@@ -10,7 +10,8 @@ public class Solver
     private const int IntegrationPointCount = 128; // > 10
 
     private double h; // długość przedziału
-    private int k; // wielkość macierzy
+
+    private int k;
 
     private int n; // liczba elementów
 
@@ -50,45 +51,46 @@ public class Solver
 
     private Vector<double> CreateResultVector()
     {
-        var resultVector = new DenseVector(k);
+        var v = DenseVector.Build.Dense(k, i => L(i));
 
-        //resultVector[0] = 1; // Warunek brzegowy Dirichleta
+        v[0] = 1;
 
-        for (var i = 1; i < k; i++) resultVector[i] = L(i);
-
-        return resultVector;
+        return v;
     }
 
     private Matrix<double> CreateEquationMatrix()
     {
         var equationMatrix = new DenseMatrix(k, k);
 
-        for (var i = 0; i < k; i += 1)
-        for (var j = 0; j < k; j += 1)
+        for (var i = 1; i < k; i++)
         {
-            var a = 0.0;
-            var b = 0.0;
+            if (i > 0)
+            {
+                // nad przekątną
+                var a2 = Math.Max(0.0, 2.0 * (i - 1) / n);
+                var b2 = Math.Min(2.0, 2.0 * i / n);
 
-            if (Math.Abs(i - j) == 1)
-            {
-                // po bokach przekątnej
-                a = 2.0 * Math.Max(0.0, 1.0 * Math.Min(i, j) / n);
-                b = 2.0 * Math.Min(1.0, 1.0 * Math.Max(i, j) / n);
-            }
-            else if (i == j)
-            {
-                // przekątna
-                a = 2.0 * Math.Max(0.0, (i - 1.0) / n);
-                b = 2.0 * Math.Min(1.0, (i + 1.0) / n);
-            }
-            else
-            {
-                equationMatrix[i, j] = 0.0;
-                continue;
+                equationMatrix[i - 1, i] = B(i - 1, i, a2, b2);
             }
 
-            equationMatrix[i, j] = B(i, j, a, b);
+            // po przekątnej
+            var a1 = Math.Max(0.0, h * (i - 1));
+            var b1 = Math.Min(2.0, h * (i + 1));
+
+            equationMatrix[i, i] = B(i, i, a1, b1);
+
+            if (i < k - 1)
+            {
+                // pod przekątną
+                var a3 = Math.Max(0.0, 2.0 * i / n);
+                var b3 = Math.Min(2.0, 2.0 * (i + 1) / n);
+
+                equationMatrix[i + 1, i] = B(i + 1, i, a3, b3);
+            }
         }
+
+        equationMatrix[0, 0] = 1;
+        equationMatrix[0, 1] = 0;
 
         return equationMatrix;
     }
@@ -100,6 +102,8 @@ public class Solver
 
     private double B(int i, int j, double a, double b)
     {
+        Console.WriteLine($"B, a: {a}, b: {b}");
+
         return Integrate(x => ePrim(i, x) * ePrim(j, x), a, b)
                - Integrate(x => e(i, x) * e(j, x), a, b)
                - e(i, 2) * e(j, 2);
@@ -107,10 +111,9 @@ public class Solver
 
     private double L(int i)
     {
-        var prev = 2.0 / n * (i - 1);
-        var next = 2.0 / n * (i + 1);
-        var a = Math.Max(0, prev);
-        var b = Math.Min(2, next);
+        var a = Math.Max(0.0, h * (i - 1));
+        var b = Math.Min(2.0, h * (i + 1));
+        Console.WriteLine($"L, a: {a}, b: {b}");
 
         return Integrate(x => e(i, x) * Math.Sin(x), a, b) // L(v_i)
                + 5 * e(i, 2) // L(v_i)
@@ -123,15 +126,14 @@ public class Solver
     // e_i zwraca liczbę z przedziału [0,1]
     private double e(int i, double x)
     {
-        var cur = 2.0 / n * i;
-        return Math.Max(0.0, 1 - Math.Abs(x - cur) * n / 2.0);
+        return Math.Max(0.0, 1 - Math.Abs(x - h * i) * n / 2.0);
     }
 
     private double ePrim(int i, double x)
     {
-        var prev = 2.0 / n * (i - 1);
-        var cur = 2.0 / n * i;
-        var next = 2.0 / n * (i + 1);
+        var prev = h * (i - 1);
+        var cur = h * i;
+        var next = h * (i + 1);
 
         return x switch
         {
@@ -144,13 +146,14 @@ public class Solver
     // ~u(0) = 1
     private double uTilde(double x)
     {
-        //return e(0, x);
-        return 1.0 - x / 2.0;
+        return e(0, x);
+        //return 1.0 - x / 2.0;
     }
 
     private double uTildePrim(double x)
     {
-        return -1.0 / 2.0;
+        return ePrim(0, x);
+        //return -1.0 / 2.0;
     }
 
     private void PlotElements()
