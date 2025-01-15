@@ -5,8 +5,7 @@ using Plotly.NET.CSharp;
 
 namespace Projekt_RRIR;
 
-public class Solver
-{
+public class Solver {
     private const int IntegrationPointCount = 128; // > 10
 
     private double h; // długość przedziału
@@ -15,8 +14,7 @@ public class Solver
 
     private int n; // liczba elementów
 
-    public void Solve(int elements)
-    {
+    public void Solve(int elements) {
         n = elements;
         k = n + 1;
         h = 2.0 / n;
@@ -24,43 +22,35 @@ public class Solver
         var equationMatrix = CreateEquationMatrix();
         var resultVector = CreateResultVector();
 
+        // u = w + uTilde
         var shifts = DenseVector.Build.Dense(k, i => uTilde(i * h));
-        var coefficients = shifts.Add(equationMatrix.Solve(resultVector));
+        var w = equationMatrix.Solve(resultVector);
+        var u = w.Add(shifts).ToList();
 
-        var y = coefficients.ToList();
+        var x = Enumerable.Range(0, k).Select(i => h * i).ToList();
 
-        var x = CreateXList();
-
-        Console.WriteLine("----------Macierz B----------");
+        Console.WriteLine("----------Macierz B(w,v)----------");
         Console.WriteLine(equationMatrix.ToString());
-        Console.WriteLine("\n----------Macierz L----------");
+        Console.WriteLine("\n----------Macierz LTilde(v)----------");
         Console.WriteLine(resultVector.ToString());
         Console.WriteLine("\n----------x----------");
         Console.WriteLine(string.Join(", ", x));
         Console.WriteLine("\n----------y----------");
-        Console.WriteLine(string.Join(", ", y));
+        Console.WriteLine(string.Join(", ", u));
 
-        Chart.Line<double, double, string>(x, y, Name: "Wibracje akustyczne warstwy materiału").Show();
+        Chart.Line<double, double, string>(x, u, Name: "Wibracje akustyczne warstwy materiału").Show();
 
-        //PlotElements();
+        // PlotElements();
     }
 
-    private List<double> CreateXList()
-    {
-        return Enumerable.Range(0, k).Select(i => h * i).ToList();
-    }
-
-    private Vector<double> CreateResultVector()
-    {
+    private Vector<double> CreateResultVector() {
         return DenseVector.Build.Dense(k, i => L(i));
     }
 
-    private Matrix<double> CreateEquationMatrix()
-    {
+    private Matrix<double> CreateEquationMatrix() {
         var equationMatrix = new DenseMatrix(k, k);
 
-        for (var i = 1; i < k; i++)
-        {
+        for (var i = 1; i < k; i++) {
             var prev = i - 1;
             var next = i + 1;
             if (prev >= 0)
@@ -81,29 +71,26 @@ public class Solver
         return equationMatrix;
     }
 
-    private double Integrate(Func<double, double> func, double a, double b)
-    {
+    private double Integrate(Func<double, double> func, double a, double b) {
         return GaussLegendreRule.Integrate(func, a, b, IntegrationPointCount);
     }
 
-    private double B(int i, int j)
-    {
+    private double B(int i, int j) {
         var a = Math.Max(0.0, h * (Math.Max(i, j) - 1));
         var b = Math.Min(2.0, h * (Math.Min(i, j) + 1));
-        Console.WriteLine($"B, a: {a}, b: {b}");
+        //Console.WriteLine($"B, a: {a}, b: {b}");
 
         return Integrate(x => ePrim(i, x) * ePrim(j, x), a, b)
                - Integrate(x => e(i, x) * e(j, x), a, b)
                - e(i, 2) * e(j, 2);
     }
 
-    private double L(int i)
-    {
+    private double L(int i) {
         if (i == 0) return 0;
 
         var a = Math.Max(0.0, h * (i - 1));
         var b = Math.Min(2.0, h * (i + 1));
-        Console.WriteLine($"L, a: {a}, b: {b}");
+        //Console.WriteLine($"L, a: {a}, b: {b}");
 
         return Integrate(x => e(i, x) * Math.Sin(x), a, b) // ∫ v(x)*sin(x) dx | L(v_i)
                + 5 * e(i, 2) // 5v(2) | L(v_i)
@@ -114,48 +101,36 @@ public class Solver
 
     // Funkcje e_i tworzą bazę przestrzeni V, tzw. baza daszkowa
     // e_i zwraca liczbę z przedziału [0,1]
-    private double e(int i, double x)
-    {
+    private double e(int i, double x) {
         return Math.Max(0.0, 1 - Math.Abs(x - h * i) * n / 2.0);
     }
 
-    private double ePrim(int i, double x)
-    {
-        var prev = h * (i - 1);
-        var cur = h * i;
-        var next = h * (i + 1);
-
-        return x switch
-        {
-            _ when x <= prev || x >= next => 0,
-            _ when x < cur => n / 2.0,
+    private double ePrim(int i, double x) {
+        return x switch {
+            _ when x <= h * (i - 1) || x >= h * (i + 1) => 0,
+            _ when x < h * i => n / 2.0,
             _ => -n / 2.0
         };
     }
 
-    // ~u(0) = 1
-    private double uTilde(double x)
-    {
+    // shift
+    private double uTilde(double x) {
         return e(0, x);
     }
 
-    private double uTildePrim(double x)
-    {
+    private double uTildePrim(double x) {
         return ePrim(0, x);
     }
 
-    private void PlotElements()
-    {
+    private void PlotElements() {
         var xs = new List<List<double>>();
         var ys = new List<List<double>>();
 
-        for (var j = 0; j < n; j++)
-        {
+        for (var j = 0; j < n; j++) {
             var x = new List<double>();
             var y = new List<double>();
 
-            for (double i = 0; i < 2.0; i += h / 100)
-            {
+            for (double i = 0; i < 2.0; i += h / 100) {
                 x.Add(i);
                 y.Add(e(j, i));
             }
