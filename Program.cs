@@ -8,7 +8,7 @@ internal class Program
 
         if (args.Length == 0)
             // Default for 3 elements
-            solver.Solve(10);
+            solver.Solve(6);
         else if (int.Parse(args[0]) < 3)
             throw new Exception("Liczba elementów musi być >= 3");
         else

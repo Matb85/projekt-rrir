@@ -7,16 +7,16 @@ namespace Projekt_RRIR;
 
 public class Solver
 {
-    private const int IntegrationPointCount = 64; // > 10
+    private const int IntegrationPointCount = 128; // > 10
 
     private double h; // długość przedziału
     private int k; // wielkość macierzy
 
     private int n; // liczba elementów
 
-    public void Solve(int n)
+    public void Solve(int elements)
     {
-        this.n = n;
+        n = elements;
         k = n + 1;
         h = 2.0 / n;
 
@@ -52,7 +52,7 @@ public class Solver
     {
         var resultVector = new DenseVector(k);
 
-        resultVector[0] = 0; // Warunek brzegowy Dirichleta
+        //resultVector[0] = 1; // Warunek brzegowy Dirichleta
 
         for (var i = 1; i < k; i++) resultVector[i] = L(i);
 
@@ -63,17 +63,32 @@ public class Solver
     {
         var equationMatrix = new DenseMatrix(k, k);
 
-        for (var i = 1; i < k; i++)
-        for (var j = i; j < k; j++)
-            equationMatrix[i, j] = equationMatrix[j, i] = B(i, j);
-
-        for (var i = 1; i < k; i++)
+        for (var i = 0; i < k; i += 1)
+        for (var j = 0; j < k; j += 1)
         {
-            equationMatrix[0, i] = 0;
-            equationMatrix[i, 0] = 0;
-        }
+            var a = 0.0;
+            var b = 0.0;
 
-        equationMatrix[0, 0] = 1;
+            if (Math.Abs(i - j) == 1)
+            {
+                // po bokach przekątnej
+                a = 2.0 * Math.Max(0.0, 1.0 * Math.Min(i, j) / n);
+                b = 2.0 * Math.Min(1.0, 1.0 * Math.Max(i, j) / n);
+            }
+            else if (i == j)
+            {
+                // przekątna
+                a = 2.0 * Math.Max(0.0, (i - 1.0) / n);
+                b = 2.0 * Math.Min(1.0, (i + 1.0) / n);
+            }
+            else
+            {
+                equationMatrix[i, j] = 0.0;
+                continue;
+            }
+
+            equationMatrix[i, j] = B(i, j, a, b);
+        }
 
         return equationMatrix;
     }
@@ -83,36 +98,33 @@ public class Solver
         return GaussLegendreRule.Integrate(func, a, b, IntegrationPointCount);
     }
 
-    private double B(int i, int j)
+    private double B(int i, int j, double a, double b)
     {
-        var rest = -e(j, 2) * (e(i, 2) + 0);
-        if (Math.Abs(i - j) >= 2)
-            return rest;
-
-        var a = Math.Max(0, 2.0 / n * (Math.Max(i, j) - 1));
-        var b = Math.Min(2, 2.0 / n * (Math.Min(i, j) + 1));
-
-        var integralResult1 = Integrate(x => ePrim(i, x) * ePrim(j, x), a, b);
-        var integralResult2 = Integrate(x => -e(i, x) * e(j, x), a, b);
-        return integralResult1 + integralResult2 + rest;
+        return Integrate(x => ePrim(i, x) * ePrim(j, x), a, b)
+               - Integrate(x => e(i, x) * e(j, x), a, b)
+               - e(i, 2) * e(j, 2);
     }
 
     private double L(int i)
     {
-        var a = Math.Max(0, 2.0 / n * (i - 1));
-        var b = Math.Min(2, 2.0 / n * (i + 1));
+        var prev = 2.0 / n * (i - 1);
+        var next = 2.0 / n * (i + 1);
+        var a = Math.Max(0, prev);
+        var b = Math.Min(2, next);
 
-        var integralResult = Integrate(x => e(i, x) * Math.Sin(x), a, b);
-
-        return integralResult;
+        return Integrate(x => e(i, x) * Math.Sin(x), a, b) // L(v_i)
+               + 5 * e(i, 2) // L(v_i)
+               + Integrate(x => uTilde(x) * e(i, x), a, b) // B(uTilde, v_i)
+               - Integrate(x => uTildePrim(x) * ePrim(i, x), a, b) // B(uTilde, v_i)
+               + uTilde(2) * e(i, 2); // B(uTilde, v_i)
     }
 
-    // Metoda Galerkina
-    // Ideą metody jest aproksymacja rozwiązania liniową kombinacją funkcji bazowych e_i = e_i(x)
+    // Funkcje e_i tworzą bazę przestrzeni V, tzw. baza daszkowa
+    // e_i zwraca liczbę z przedziału [0,1]
     private double e(int i, double x)
     {
         var cur = 2.0 / n * i;
-        return Math.Max(0, 1 - Math.Abs(x - cur) * n / 2.0);
+        return Math.Max(0.0, 1 - Math.Abs(x - cur) * n / 2.0);
     }
 
     private double ePrim(int i, double x)
@@ -120,11 +132,25 @@ public class Solver
         var prev = 2.0 / n * (i - 1);
         var cur = 2.0 / n * i;
         var next = 2.0 / n * (i + 1);
-        if (x <= prev || x >= next)
-            return 0;
-        if (x < cur)
-            return n / 2.0;
-        return -n / 2.0;
+
+        return x switch
+        {
+            _ when x <= prev || x >= next => 0,
+            _ when x < cur => n / 2.0,
+            _ => -n / 2.0
+        };
+    }
+
+    // ~u(0) = 1
+    private double uTilde(double x)
+    {
+        //return e(0, x);
+        return 1.0 - x / 2.0;
+    }
+
+    private double uTildePrim(double x)
+    {
+        return -1.0 / 2.0;
     }
 
     private void PlotElements()
@@ -137,9 +163,7 @@ public class Solver
             var x = new List<double>();
             var y = new List<double>();
 
-            var n = 100;
-
-            for (double i = 0; i < 2.0; i += h / n)
+            for (double i = 0; i < 2.0; i += h / 100)
             {
                 x.Add(i);
                 y.Add(e(j, i));
@@ -150,8 +174,7 @@ public class Solver
         }
 
         var charts = Enumerable.Range(0, n)
-            .Select(x => Chart.Line<double, double, string>(xs[x], ys[x], Name: $"Element {x}"))
-            .ToList();
+            .Select(i => Chart.Line<double, double, string>(xs[i], ys[i], Name: $"Element {i}"));
 
         Chart.Combine(charts).Show();
     }
