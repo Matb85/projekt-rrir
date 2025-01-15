@@ -23,16 +23,17 @@ public class Solver
 
         var equationMatrix = CreateEquationMatrix();
         var resultVector = CreateResultVector();
-        var coefficients = equationMatrix.Solve(resultVector);
+
+        var shifts = DenseVector.Build.Dense(k, i => uTilde(i * h));
+        var coefficients = shifts.Add(equationMatrix.Solve(resultVector));
 
         var y = coefficients.ToList();
-        y.Add(0.0);
 
         var x = CreateXList();
 
-        Console.WriteLine("----------Macierz A----------");
+        Console.WriteLine("----------Macierz B----------");
         Console.WriteLine(equationMatrix.ToString());
-        Console.WriteLine("\n----------Macierz B----------");
+        Console.WriteLine("\n----------Macierz L----------");
         Console.WriteLine(resultVector.ToString());
         Console.WriteLine("\n----------x----------");
         Console.WriteLine(string.Join(", ", x));
@@ -51,11 +52,7 @@ public class Solver
 
     private Vector<double> CreateResultVector()
     {
-        var v = DenseVector.Build.Dense(k, i => L(i));
-
-        v[0] = 1;
-
-        return v;
+        return DenseVector.Build.Dense(k, i => L(i));
     }
 
     private Matrix<double> CreateEquationMatrix()
@@ -64,29 +61,18 @@ public class Solver
 
         for (var i = 1; i < k; i++)
         {
-            if (i > 0)
-            {
+            var prev = i - 1;
+            var next = i + 1;
+            if (prev >= 0)
                 // nad przekątną
-                var a2 = Math.Max(0.0, 2.0 * (i - 1) / n);
-                var b2 = Math.Min(2.0, 2.0 * i / n);
-
-                equationMatrix[i - 1, i] = B(i - 1, i, a2, b2);
-            }
+                equationMatrix[prev, i] = B(prev, i);
 
             // po przekątnej
-            var a1 = Math.Max(0.0, h * (i - 1));
-            var b1 = Math.Min(2.0, h * (i + 1));
+            equationMatrix[i, i] = B(i, i);
 
-            equationMatrix[i, i] = B(i, i, a1, b1);
-
-            if (i < k - 1)
-            {
+            if (next < k)
                 // pod przekątną
-                var a3 = Math.Max(0.0, 2.0 * i / n);
-                var b3 = Math.Min(2.0, 2.0 * (i + 1) / n);
-
-                equationMatrix[i + 1, i] = B(i + 1, i, a3, b3);
-            }
+                equationMatrix[next, i] = B(next, i);
         }
 
         equationMatrix[0, 0] = 1;
@@ -100,8 +86,10 @@ public class Solver
         return GaussLegendreRule.Integrate(func, a, b, IntegrationPointCount);
     }
 
-    private double B(int i, int j, double a, double b)
+    private double B(int i, int j)
     {
+        var a = Math.Max(0.0, h * (Math.Max(i, j) - 1));
+        var b = Math.Min(2.0, h * (Math.Min(i, j) + 1));
         Console.WriteLine($"B, a: {a}, b: {b}");
 
         return Integrate(x => ePrim(i, x) * ePrim(j, x), a, b)
@@ -111,15 +99,17 @@ public class Solver
 
     private double L(int i)
     {
+        if (i == 0) return 0;
+
         var a = Math.Max(0.0, h * (i - 1));
         var b = Math.Min(2.0, h * (i + 1));
         Console.WriteLine($"L, a: {a}, b: {b}");
 
-        return Integrate(x => e(i, x) * Math.Sin(x), a, b) // L(v_i)
-               + 5 * e(i, 2) // L(v_i)
-               + Integrate(x => uTilde(x) * e(i, x), a, b) // B(uTilde, v_i)
-               - Integrate(x => uTildePrim(x) * ePrim(i, x), a, b) // B(uTilde, v_i)
-               + uTilde(2) * e(i, 2); // B(uTilde, v_i)
+        return Integrate(x => e(i, x) * Math.Sin(x), a, b) // ∫ v(x)*sin(x) dx | L(v_i)
+               + 5 * e(i, 2) // 5v(2) | L(v_i)
+               + Integrate(x => uTilde(x) * e(i, x), a, b) // ∫ uTilde(x)*v(x) dx | B(uTilde, v_i)
+               - Integrate(x => uTildePrim(x) * ePrim(i, x), a, b) // ∫ uTilde'(x)*v'(x) dx | B(uTilde, v_i)
+               + uTilde(2) * e(i, 2); // uTilde(x)*v'x) | B(uTilde, v_i)
     }
 
     // Funkcje e_i tworzą bazę przestrzeni V, tzw. baza daszkowa
@@ -147,13 +137,11 @@ public class Solver
     private double uTilde(double x)
     {
         return e(0, x);
-        //return 1.0 - x / 2.0;
     }
 
     private double uTildePrim(double x)
     {
         return ePrim(0, x);
-        //return -1.0 / 2.0;
     }
 
     private void PlotElements()
