@@ -1,8 +1,7 @@
 ﻿using MathNet.Numerics.Integration;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
-using Plotly.NET.CSharp;
-using Plotly.NET.ImageExport;
+using ScottPlot;
 
 namespace Projekt_RRIR;
 
@@ -42,12 +41,12 @@ public class Solver {
         Console.WriteLine("\n----------y----------");
         Console.WriteLine(string.Join(", ", u));
 
-        var chart = Chart.Line<double, double, string>(x, u, Name: "Wibracje akustyczne warstwy materiału")
-            .WithXAxisStyle<double, double, string>("x", MinMax: Tuple.Create(0.0, 2.0))
-            .WithYAxisStyle<double, double, string>("u(x)");
-
-        if (saveToFile) chart.SavePNG(saveDir + "/wykres", Width: 1600, Height: 900);
-        else chart.Show();
+        Plot chart = new();
+        chart.XLabel("x");
+        chart.YLabel("u(x)");
+        chart.Title("Wibracje akustyczne warstwy materiału");
+        chart.Add.Scatter(x, u);
+        chart.SavePng(saveDir + "/wykres.png", 800, 450);
 
         PlotElements();
     }
@@ -132,8 +131,11 @@ public class Solver {
     }
 
     private void PlotElements() {
-        var xs = new List<List<double>>();
-        var ys = new List<List<double>>();
+        Plot chart = new();
+
+        chart.XLabel("x");
+        chart.YLabel("y");
+        chart.Title($"Wykres elementów dla n={n}");
 
         for (var j = 0; j < n; j++) {
             var x = new List<double>();
@@ -144,18 +146,11 @@ public class Solver {
                 y.Add(e(j, i));
             }
 
-            xs.Add(x);
-            ys.Add(y);
+            var currentLine = chart.Add.ScatterLine(x, y);
+            currentLine.LegendText = $"Element {j}";
         }
 
-        var charts = Enumerable.Range(0, n)
-            .Select(i => Chart.Line<double, double, string>(xs[i], ys[i], Name: $"Element {i}"));
-
-        var chart = Chart.Combine(charts)
-            .WithXAxisStyle<double, double, string>("x", MinMax: Tuple.Create(0.0, 2.0))
-            .WithYAxisStyle<double, double, string>("y");
-
-        if (saveToFile) chart.SavePNG(saveDir + "/elementy", Width: 1600, Height: 900);
-        else chart.Show();
+        chart.ShowLegend(Edge.Bottom);
+        if (saveToFile) chart.SavePng(saveDir + "/elementy.png", 800, 450);
     }
 }
