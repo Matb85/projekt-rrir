@@ -2,6 +2,7 @@
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
 using Plotly.NET.CSharp;
+using Plotly.NET.ImageExport;
 
 namespace Projekt_RRIR;
 
@@ -9,15 +10,18 @@ public class Solver {
     private const int IntegrationPointCount = 128; // > 10
 
     private double h; // długość przedziału
-
-    private int k;
-
+    private int k; // rozmiar macierzy
     private int n; // liczba elementów
 
-    public void Solve(int elements) {
+    private string saveDir;
+    private bool saveToFile;
+
+    public void Solve(int elements, string saveDirectory) {
         n = elements;
         k = n + 1;
         h = 2.0 / n;
+        saveDir = saveDirectory;
+        saveToFile = saveDir.Length > 0;
 
         var equationMatrix = CreateEquationMatrix();
         var resultVector = CreateResultVector();
@@ -38,9 +42,14 @@ public class Solver {
         Console.WriteLine("\n----------y----------");
         Console.WriteLine(string.Join(", ", u));
 
-        Chart.Line<double, double, string>(x, u, Name: "Wibracje akustyczne warstwy materiału").Show();
+        var chart = Chart.Line<double, double, string>(x, u, Name: "Wibracje akustyczne warstwy materiału")
+            .WithXAxisStyle<double, double, string>("x", MinMax: Tuple.Create(0.0, 2.0))
+            .WithYAxisStyle<double, double, string>("u(x)");
 
-        // PlotElements();
+        if (saveToFile) chart.SavePNG(saveDir + "/wykres", Width: 800, Height: 800);
+        else chart.Show();
+
+        PlotElements();
     }
 
     private Vector<double> CreateResultVector() {
@@ -78,11 +87,11 @@ public class Solver {
     private double B(int i, int j) {
         var a = Math.Max(0.0, h * (Math.Max(i, j) - 1));
         var b = Math.Min(2.0, h * (Math.Min(i, j) + 1));
-        //Console.WriteLine($"B, a: {a}, b: {b}");
+        // Console.WriteLine($"B, a: {a}, b: {b}");
 
-        return Integrate(x => ePrim(i, x) * ePrim(j, x), a, b)
-               - Integrate(x => e(i, x) * e(j, x), a, b)
-               - e(i, 2) * e(j, 2);
+        return Integrate(x => ePrim(i, x) * ePrim(j, x), a, b) // ∫ w'(x)*v'(x)
+               - Integrate(x => e(i, x) * e(j, x), a, b) // ∫ w(x)*v(x)
+               - e(i, 2) * e(j, 2); // w(2)*v(2)
     }
 
     private double L(int i) {
@@ -90,7 +99,7 @@ public class Solver {
 
         var a = Math.Max(0.0, h * (i - 1));
         var b = Math.Min(2.0, h * (i + 1));
-        //Console.WriteLine($"L, a: {a}, b: {b}");
+        // Console.WriteLine($"L, a: {a}, b: {b}");
 
         return Integrate(x => e(i, x) * Math.Sin(x), a, b) // ∫ v(x)*sin(x) dx | L(v_i)
                + 5 * e(i, 2) // 5v(2) | L(v_i)
@@ -142,6 +151,11 @@ public class Solver {
         var charts = Enumerable.Range(0, n)
             .Select(i => Chart.Line<double, double, string>(xs[i], ys[i], Name: $"Element {i}"));
 
-        Chart.Combine(charts).Show();
+        var chart = Chart.Combine(charts)
+            .WithXAxisStyle<double, double, string>("x", MinMax: Tuple.Create(0.0, 2.0))
+            .WithYAxisStyle<double, double, string>("y");
+
+        if (saveToFile) chart.SavePNG(saveDir + "/elementy", Width: 800, Height: 800);
+        else chart.Show();
     }
 }
