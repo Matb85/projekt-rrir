@@ -4,12 +4,12 @@ internal class Program {
     public static void Main(string[] args) {
         var solver = new Solver();
 
-        var elements = args.Length > 0 ? int.Parse(args[0]) : 6;
+        var elements = args.Length > 0 ? int.Parse(args[0]) : 0;
         if (elements < 3)
             throw new Exception("Liczba elementów musi być >= 3");
 
         var saveDir = args.Length > 1 ? args[1] : "";
 
-        solver.Solve(6, saveDir);
+        solver.Solve(elements, saveDir);
     }
 }

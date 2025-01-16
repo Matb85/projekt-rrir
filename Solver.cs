@@ -16,7 +16,7 @@ public class Solver {
     private string saveDir;
     private bool saveToFile;
 
-    public void Solve(int elements, string saveDirectory) {
+    public void Solve(int elements, string saveDirectory = "") {
         n = elements;
         k = n + 1;
         h = 2.0 / n;
@@ -46,7 +46,7 @@ public class Solver {
             .WithXAxisStyle<double, double, string>("x", MinMax: Tuple.Create(0.0, 2.0))
             .WithYAxisStyle<double, double, string>("u(x)");
 
-        if (saveToFile) chart.SavePNG(saveDir + "/wykres", Width: 800, Height: 800);
+        if (saveToFile) chart.SavePNG(saveDir + "/wykres", Width: 1600, Height: 900);
         else chart.Show();
 
         PlotElements();
@@ -155,7 +155,7 @@ public class Solver {
             .WithXAxisStyle<double, double, string>("x", MinMax: Tuple.Create(0.0, 2.0))
             .WithYAxisStyle<double, double, string>("y");
 
-        if (saveToFile) chart.SavePNG(saveDir + "/elementy", Width: 800, Height: 800);
+        if (saveToFile) chart.SavePNG(saveDir + "/elementy", Width: 1600, Height: 900);
         else chart.Show();
     }
 }
