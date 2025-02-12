@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="LocationsWithSilentDeleteHolder">
+    <option name="locations">
+      <list>
+        <option value="$PROJECT_DIR$/linux-x64" />
+        <option value="$PROJECT_DIR$/osx-arm" />
+        <option value="$PROJECT_DIR$/win-x64" />
+      </list>
+    </option>
+  </component>
+</project>
