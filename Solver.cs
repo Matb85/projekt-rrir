@@ -45,7 +45,7 @@ public class Solver {
         chart.XLabel("x");
         chart.YLabel("u(x)");
         chart.Title("Wibracje akustyczne warstwy materiału");
-        chart.Add.Scatter(x, u);
+        chart.Add.ScatterLine(x, u);
         chart.SavePng(saveDir + "/wykres.png", 800, 450);
 
         PlotElements();

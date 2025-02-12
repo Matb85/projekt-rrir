@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Save To File" type="DotNetProject" factoryName=".NET Project">
     <option name="EXE_PATH" value="$PROJECT_DIR$/bin/Debug/net8.0/osx-arm64/ProjektRRIR" />
-    <option name="PROGRAM_PARAMETERS" value="14 $USER_HOME$/Downloads/" />
+    <option name="PROGRAM_PARAMETERS" value="3 $USER_HOME$/Downloads/" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/bin/Debug/net8.0/osx-arm64" />
     <option name="PASS_PARENT_ENVS" value="1" />
     <option name="USE_EXTERNAL_CONSOLE" value="0" />
